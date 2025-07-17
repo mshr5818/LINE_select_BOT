@@ -1,8 +1,16 @@
 from flask import Flask, request
-from linebot import LineBotApi, WebhookHandler
+from linebot import LineBotApi
+from linebot.v3.webhook import WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import openai
 import random
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
+handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
 app = Flask(__name__)
 
@@ -176,3 +184,6 @@ def handle_message(event):
     user_message = event.message.text
     reply = handle_user_message(user_id, user_message)
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
