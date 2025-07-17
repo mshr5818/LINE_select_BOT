@@ -14,9 +14,7 @@ handler = WebhookHandler(os.getenv.("LINE_CHANNEL_SECRET"))
 
 app = Flask(__name__)
 
-line_bot_api = LineBotApi("YOUR_LINE_CHANNEL_ACCESS_TOKEN")
-handler = WebhookHandler("YOUR_LINE_CHANNEL_SECRET")
-openai.api_key = "YOUR_OPENAI_API_KEY"
+
 
 # --- 1. ユーザーごとのキャラ管理 ---
 user_character_map = {}  # { user_id: "tsundere_junior" }
