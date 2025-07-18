@@ -188,10 +188,14 @@ def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
     try:
-        handler.handle(body,sinature)
+        handler.handle(body, sinature)
     except Exception as e:
         print("💥 Webhook handler エラー:", e)
     return 'OK'
+
+@app.route("/", methods=["GET"])
+def index():
+    return "LINE BOT is running!"
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
