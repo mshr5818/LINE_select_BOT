@@ -149,7 +149,7 @@ def chat_with_gpt(system_prompt, user_message):
         return response.choices[0].message.content.strip()
     except Exception as e:
         import traceback
-        print("💥 GPTエラー詳細:",　traceback.format_exc())
+        print("💥 GPTエラー詳細:", traceback.format_exc())
         return "…エラーが出たみたいですけど？"
 
 # --- 6. メッセージ処理本体 ---
