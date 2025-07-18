@@ -1,6 +1,5 @@
 from flask import Flask, request
-from linebot import LineBotApi
-from linebot.v3.webhook import WebhookHandler
+from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import openai
 import random
@@ -188,7 +187,10 @@ def handle_user_message(user_id, user_message):
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-    handler.handle(body, signature)
+    try:
+        handler.handle(body,sinature)
+    except Exception as e:
+        print("💥 Webhook handler エラー:", e)
     return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
@@ -203,6 +205,6 @@ def handle_message(event):
 
     except Exception as e:
         print("💥 handle_message エラー:", e)
-        
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
