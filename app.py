@@ -133,39 +133,53 @@ def update_character(user_id, text):
         return f"キャラクターを「{text[1:]}」に切り替えました✨"
     return None
 
+print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
+
 # --- 5. GPT応答処理 ---
 def chat_with_gpt(system_prompt, user_message):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ],
-        max_tokens=100,
-        temperature=0.8
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=100,
+            temperature=0.8
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print("💥 GPTエラー:", e)
+        return "…エラーが出たみたいですけど？"
 
 # --- 6. メッセージ処理本体 ---
 def handle_user_message(user_id, user_message):
+    print(f"📩 {user_id} さんから: {user_message}")
+
     # コマンド切り替え
     character_change_msg = update_character(user_id, user_message)
     if character_change_msg:
         return character_change_msg
 
+    print(f"📩 {user_id} さんから: {user_message}")
+
     # キャラ設定されてない場合はデフォルト（ツンデレ）
     character = user_character_map.get(user_id, "tsundere_junior")
+    print("🎭 使用キャラ:", character)
 
     # キーワード応答
     for keyword, responses in CHARACTER_RESPONSES[character]["keywords"].items():
         if keyword in user_message:
+            print("✨ キーワードヒット:", keyword)
             return random.choice(responses)
 
     # ランダム応答（30%くらいの確率で）
     if random.random() < 0.3:
+        print("🎲 ランダム応答発動！")
         return random.choice(CHARACTER_RESPONSES[character]["random"])
 
     # GPT応答
+    print("🧠 GPTに送信")
     system_prompt = CHARACTER_PROMPTS[character]
     return chat_with_gpt(system_prompt, user_message)
 
@@ -179,10 +193,16 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    user_id = event.source.user_id
-    user_message = event.message.text
-    reply = handle_user_message(user_id, user_message)
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+    try:   
+        user_id = event.source.user_id
+        user_message = event.message.text
+        print(f"📩 イベント受信: {user_id}, メッセージ: {user_message}")
+        
+        reply = handle_user_message(user_id, user_message)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
+    except Exception as e:
+        print("💥 handle_message エラー:", e)
+        
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
