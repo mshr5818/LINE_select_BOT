@@ -187,12 +187,20 @@ def handle_user_message(user_id, user_message):
 # --- 7. LINEのWebhook処理 ---
 @app.route("/callback", methods=['POST'])
 def callback():
-    signature = request.headers['X-Line-Signature']
+    signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
+
+    print("📨 /callback  にリクエスト受信:", body)
+
+    if not signature:
+        print("💥 署名ヘッダー (X-Line-Signature) が無いリクエストを拒否します")
+        return "Missing Signature", 400
+
     try:
         handler.handle(body, signature)
     except Exception as e:
         print("💥 Webhook handler エラー:", e)
+        print("💥 詳細:", traceback.format_exc())
     return 'OK'
 
 @app.route("/", methods=["GET"])
@@ -211,6 +219,5 @@ def handle_message(event):
 
     except Exception as e:
         print("💥 handle_message エラー:", e)
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
