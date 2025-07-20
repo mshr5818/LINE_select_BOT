@@ -2,7 +2,7 @@ from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import traceback
-import openai
+from openai import OpenAI
 import random
 import os
 from dotenv import load_dotenv
@@ -136,8 +136,6 @@ def update_character(user_id, text):
 print("OPENAI_API_KEY の読み込み成功(内容は非表示)")
 
 # --- 5. GPT応答処理 ---
-from openai import OpenAI
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def chat_with_gpt(system_prompt, user_message):
