@@ -139,7 +139,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def chat_with_gpt(system_prompt, user_message):
     try:
-        response = client.Chat.Completions.create(
+        response = client.chat.Completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
