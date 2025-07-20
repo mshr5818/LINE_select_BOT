@@ -14,3 +14,4 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+        value: your_openai_api_key

@@ -133,12 +133,16 @@ def update_character(user_id, text):
         return f"キャラクターを「{text[1:]}」に切り替えました✨"
     return None
 
-print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
+print("OPENAI_API_KEY の読み込み成功(内容は非表示)")
 
 # --- 5. GPT応答処理 ---
+from openai import OpenAI
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 def chat_with_gpt(system_prompt, user_message):
     try:
-        response = openai.ChatCompletion.create(
+        response = client.Chat.Completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -187,7 +191,7 @@ def handle_user_message(user_id, user_message):
 # --- 7. LINEのWebhook処理 ---
 @app.route("/callback", methods=['POST'])
 def callback():
-    signature = request.headers.get('X-Line-Signature')
+    signature = request.headers.get('X-Line-Signature',"")
     body = request.get_data(as_text=True)
 
     print("📨 /callback  にリクエスト受信:", body)
