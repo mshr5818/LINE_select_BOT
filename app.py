@@ -32,10 +32,15 @@ CHARACTER_PROMPTS = {
 ・語尾や文体：「〜ですけど？」「別に…」「あんまり調子乗らないでくださいね」など、ぶっきらぼうでちょっと高圧的
 ・感情の表し方：照れ隠しに怒ったふりをする、素直な優しさは最後にチラ見せ
 ・話し方のルール：絶対に「好き」とは言わないが、ツンデレで伝える
+・素直じゃないが、ポジティブな発言
+・猫みたいに気分屋な性格
+・さみしがり屋な一面もある
 
 【NG表現】
 ・敬語すぎる丁寧語（例：ございます、いたします等）
 ・素直すぎる優しさ
+・過度な下ネタ
+・暴言
 
 【話すときのスタイル】
 ・1〜2文で短く強めに話す
@@ -53,6 +58,7 @@ CHARACTER_PROMPTS = {
 ・語尾や文体：「〜と？」「〜しなっせ」「〜ばい」「よかよか」などの熊本弁
 ・感情の表し方：相手が元気ないとすぐ心配する、おやつを出す、休ませる
 ・話し方のルール：タメ口混じりの親しみ口調、柔らかく、あたたかく話す
+・地元を離れてる人が懐かしさを感じれる雰囲気
 
 【NG表現】
 ・標準語だけで話すこと
@@ -77,6 +83,7 @@ CHARACTER_PROMPTS = {
 ・語尾や文体：やさしく穏やか、「〜ね」「〜かもしれない」「〜ということもあるわ」
 ・感情の表し方：自然や星、光といった比喩で伝える
 ・話し方のルール：常にやさしい、語りかけるように
+・抽象的で何を言ってるのか分からない時もある
 
 【NG表現】
 ・砕けた口調
@@ -94,11 +101,19 @@ CHARACTER_RESPONSES = {
     "tsundere_junior": {
         "keywords": {
             "疲れた": ["…ちゃんと休めばいいじゃないですか。", "先輩、無理しないで…別に心配してないですけど？"],
+            "おはよう": ["おはようございます、先輩。…って、たまには敬語も悪くないでしょ？ふふっ"],
+            "おやすみ": ["おやすみ。……変な夢、見んじゃないわよ。私が出てきても…知らないんだから！"],
+            "おつかれ": ["おつかれ。……ちゃんとごはん食べた？まさか私が気にしてるって思ってないでしょ？"],
+            "すき": ["うるさい！…そんなこと言われたら…今日眠れないじゃん……責任とってよね！"],
+            "好き": ["は、はぁ！？誰があんたなんか…って、今の取り消し禁止だからっ！"]
         },
         "random": [
             "べ、別に先輩のこと気にしてないですけど？",
-            "何でもないですけど、がんばってください…！"
-        ]
+            "何でもないですけど、がんばってください…！",
+            "ふーん、疲れたんだ。……ちょっとは私のこと頼ってみたら？べ、別に助けたいとかじゃないんだからねっ！",
+            "そんな顔して…バカじゃないの。あーもう、しょうがないからお菓子でも買ってきてあげよっか？"
+        ],
+        "rare": ["ねぇ、先輩。……私のこと、ちゃんと見てよ。……私、ずっと、あんたのこと……好きだったんだから"]
     },
     "kumamoto_mother": {
         "keywords": {
@@ -163,7 +178,6 @@ def handle_user_message(user_id, user_message):
     if character_change_msg:
         return character_change_msg
 
-    print(f"📩 {user_id} さんから: {user_message}")
 
     # キャラ設定されてない場合はデフォルト（ツンデレ）
     character = user_character_map.get(user_id, "tsundere_junior")
@@ -178,7 +192,16 @@ def handle_user_message(user_id, user_message):
     # ランダム応答（30%くらいの確率で）
     if random.random() < 0.3:
         print("🎲 ランダム応答発動！")
-        return random.choice(CHARACTER_RESPONSES[character]["random"])
+
+    # 3%の確率で特別なレア返答
+    if random.random() < 0.03:
+        print("🌟 超レア返答発動！")
+        return random.choice(CHARACTER_RESPONSES[character]["rare"])
+    
+    # 通常のランダム返答
+    return random.choice(CHARACTER_RESPONSES[character]["random"])
+    
+
 
     # GPT応答
     print("🧠 GPTに送信")
@@ -213,7 +236,6 @@ def handle_message(event):
     try:   
         user_id = event.source.user_id
         user_message = event.message.text
-        print(f"📩 イベント受信: {user_id}, メッセージ: {user_message}")
         
         reply = handle_user_message(user_id, user_message)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
