@@ -152,10 +152,9 @@ print("OPENAI_API_KEY の読み込み成功(内容は非表示)")
 # --- 5. GPT応答処理 ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-print("🧠 GPT呼び出し直前:", user_message)
-
 def chat_with_gpt(system_prompt, user_message):
     try:
+        print("🧠 GPT呼び出し直前:", user_message)
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
