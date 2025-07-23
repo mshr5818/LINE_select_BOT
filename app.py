@@ -152,6 +152,8 @@ print("OPENAI_API_KEY の読み込み成功(内容は非表示)")
 # --- 5. GPT応答処理 ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+print("🧠 GPT呼び出し直前:", user_message)
+
 def chat_with_gpt(system_prompt, user_message):
     try:
         response = client.chat.completions.create(
@@ -189,20 +191,16 @@ def handle_user_message(user_id, user_message):
             print("✨ キーワードヒット:", keyword)
             return random.choice(responses)
 
-    # ランダム応答（30%くらいの確率で）
-    if random.random() < 0.3:
-        print("🎲 ランダム応答発動！")
-
     # 3%の確率で特別なレア返答
     if random.random() < 0.03:
         print("🌟 超レア返答発動！")
         return random.choice(CHARACTER_RESPONSES[character]["rare"])
     
-    # 通常のランダム返答
-    return random.choice(CHARACTER_RESPONSES[character]["random"])
+    # ランダム応答（30%くらいの確率で）
+    if random.random() < 0.3:
+        print("🎲 ランダム応答発動！")
+        return random.choice(CHARACTER_RESPONSES[character]["random"])
     
-
-
     # GPT応答
     print("🧠 GPTに送信")
     system_prompt = CHARACTER_PROMPTS[character]
