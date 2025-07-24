@@ -364,8 +364,10 @@ SHIRITORI_WORDS = {
     "れいめい",     # 黎明、新たな始まり
     "ろじうら",     # 路地裏、心の奥
     "わすれもの",   # 忘れ物、過去との対話
-    "をとめごころ"],  # 乙女心、繊細な揺れ
+    "をとめごころ",  # 乙女心、繊細な揺れ 
+]
 }
+
 def get_shiritori_word(last_char, character):
     words = SHIRITORI_WORDS.get(character, [])
     valid_words = [w for w in words if w.startswith(last_char)]
