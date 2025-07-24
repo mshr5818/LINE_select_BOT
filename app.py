@@ -6,6 +6,7 @@ from openai import OpenAI
 import random
 import os
 from dotenv import load_dotenv
+import unicodedata
 
 load_dotenv()
 
@@ -205,6 +206,25 @@ def handle_user_message(user_id, user_message):
     system_prompt = CHARACTER_PROMPTS[character]
     return chat_with_gpt(system_prompt, user_message)
 
+def normalize_char(char):
+    # ひらがな化
+    char = unicodedata.normalize("NFKC", char)
+    char = char.lower()
+    char = char.replace("ー", "")
+    char_map = {
+        "ゃ": "や", "ゅ": "ゆ", "ょ": "よ", "っ": "つ",
+        "ぁ": "あ", "ぃ": "い", "ぅ": "う", "ぇ": "え", "ぉ": "お",
+        "ゎ": "わ", "ゔ": "う", "ば": "は", "ぱ": "は", "が": "か",
+        "だ": "た", "ざ": "さ", "じゃ": "し", "ぢゃ": "ち", "づ": "つ"
+    }
+    return char_map.get(char, char)
+
+def get_last_hiragana(word):
+    for c in reversed(word):
+        if "ぁ" <= c <= "ん":
+            return normalize_char(c)
+    return None
+
 # --- ユーザーごとのしりとり状態 ---
 user_shiritori_map = {}  # { user_id: "前の文字" }
 
@@ -344,7 +364,7 @@ SHIRITORI_WORDS = {
     "れいめい",     # 黎明、新たな始まり
     "ろじうら",     # 路地裏、心の奥
     "わすれもの",   # 忘れ物、過去との対話
-    "をとめごころ"  # 乙女心、繊細な揺れ]
+    "をとめごころ"  # 乙女心、繊細な揺れ 
 }
 
 def get_shiritori_word(last_char, character):
@@ -367,15 +387,18 @@ def get_shiritori_word(last_char, character):
             user_shiritori_map.pop(user_id, None)
             return "しりとりを終了したよ。おつかれさま〜"
 
-        if last_char and not user_message.startswith(last_char):
+        if last_char:
+            user_first_char = normalize_char(user_message[0])
+        if user_first_char != last_char:
             return f"「{last_char}」から始めてほしかったんだけど…"
+            
 
         if user_message.endswith("ん"):
             user_shiritori_map.pop(user_id, None)
             return "「ん」がついたから負けだよ〜〜〜！💥"
 
         # 次の文字を取得
-        next_char = user_message[-1]
+        next_char = get_last_hiragana(user_message)
         character = user_character_map.get(user_id, "tsundere_junior")
         bot_word = get_shiritori_word(next_char, character)
 
@@ -383,8 +406,11 @@ def get_shiritori_word(last_char, character):
             user_shiritori_map.pop(user_id, None)
             return f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！"
 
-        user_shiritori_map[user_id] = bot_word[-1]
-        return f"{bot_word}（{bot_word[-1]}）…さあ、次はあなたの番よ！"
+        # BOTの返答から次の頭文字を取得して保存
+        next_for_user = get_last_hiragana(bot_word)
+        user_shiritori_map[user_id] = next_for_user
+
+        return f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"
 
 # --- 7. LINEのWebhook処理 ---
 @app.route("/callback", methods=['POST'])
