@@ -1,10 +1,18 @@
+"""
+LINE Messaging API と OpenAI を使った対話型ボットのメインモジュール。
+
+このモジュールは Flask サーバーを使用して LINE Webhook を受信し、
+ユーザーのメッセージに対して ChatGPT API を使って返答します。
+"""
+import os
+import traceback
+
 from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
-import traceback
+
 from openai import OpenAI
 import random
-import os
 from dotenv import load_dotenv
 import unicodedata
 
@@ -230,6 +238,35 @@ def callback():
 def index():
     return "LINE BOT is running!"
 
+
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    try:
+        user_id = event.source.user_id
+        user_message = event.message.text
+
+# しりとり開始コマンド
+        if user_message == "/shiritori":
+            user_shiritori_map[user_id] = None
+            return line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
+            )
+        
+        if user_message == "しりとり開始":
+            character_word_list = CHARACTER_WORDS.get(character, [])
+        if character_word_list:
+            first_word = random.choice(character_word_list)
+            shiritori_state[user_id] = {
+            "mode": "shiritori",
+            "last_char": first_word[-1],
+            "used_words": [first_word]
+        }
+            reply_message = f"{character}「じゃあ、しりとり始めよっか！最初の言葉は『{first_word}』ね♪」"
+        else:
+            reply_message = f"{character}「ごめん、しりとりの単語が今は用意できてないの…」"
+
     # --- ユーザーごとのしりとり状態 ---
 user_shiritori_map = {}  # { user_id: "前の文字" }
 
@@ -389,7 +426,7 @@ def normalize_char(char):
     def get_last_hiragana(word):
         for c in reversed(word):
             if "ぁ" <= c <= "ん":
-              return normalize_char(c)
+                return normalize_char(c)
     return None
 
 def get_shiritori_word(last_char, character):
@@ -399,22 +436,8 @@ def get_shiritori_word(last_char, character):
         return None
     return random.choice(valid_words)
 
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    try:
-        user_id = event.source.user_id
-        user_message = event.message.text
-
-# しりとり開始コマンド
-        if user_message == "/shiritori":
-            user_shiritori_map[user_id] = None
-            return line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
-            )
-
     # しりとり中の処理
-        if user_id in user_shiritori_map:
+    if user_id in user_shiritori_map:
             last_char = user_shiritori_map[user_id]
 
             if user_message == "やめる":
@@ -451,25 +474,13 @@ def handle_message(event):
             next_for_user = get_last_hiragana(bot_word)
             user_shiritori_map[user_id] = next_for_user
 
-        return line_bot_api.reply_message(
+            return line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"))
 
-    
-        if user_message == "しりとり開始":
-            character_word_list = CHARACTER_WORDS.get(character, [])
-        if character_word_list:
-            first_word = random.choice(character_word_list)
-            shiritori_state[user_id] = {
-            "mode": "shiritori",
-            "last_char": first_word[-1],
-            "used_words": [first_word]
-        }
-            reply_message = f"{character}「じゃあ、しりとり始めよっか！最初の言葉は『{first_word}』ね♪」"
-        else:
-            reply_message = f"{character}「ごめん、しりとりの単語が今は用意できてないの…」"
+        
 
-        line_bot_api.reply_message(
+    line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=reply_message)
         )
@@ -487,7 +498,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
     except Exception as e:
-        print("💥 handle_message エラー:", e)
+    print("💥 handle_message エラー:", e)
 
 if __name__ == "__main__":
-     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
