@@ -245,6 +245,8 @@ def handle_message(event):
     try:
         user_id = event.source.user_id
         user_message = event.message.text
+    except Exception as e:
+        print("💥 handle_message エラー:", e)
 
 # しりとり開始コマンド
         if user_message == "/shiritori":
@@ -484,21 +486,20 @@ def get_shiritori_word(last_char, character):
             event.reply_token,
             TextSendMessage(text=reply_message)
         )
-        return "OK"
+    return "OK"
 
-        if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
+    if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
     # しりとり継続ロジックを呼び出す
             reply_message = handle_shiritori(user_message, user_id, character)
     
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=reply_message)
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_message)
         )
-        reply = handle_user_message(user_id, user_message)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+    reply = handle_user_message(user_id, user_message)
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
-    except Exception as e:
-    print("💥 handle_message エラー:", e)
+    
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
