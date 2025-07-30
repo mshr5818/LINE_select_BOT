@@ -191,31 +191,40 @@ def handle_message(event):
         user_id = event.source.user_id
         user_message = event.message.text
         character = user_character_map.get(user_id, "tsundere_junior")
-    except Exception as e:
-        print("💥 handle_message エラー:", e)
-        return
+
+        print(f"👤 user_id: {user_id}")
+        print(f"📝 message: {user_message}")
+        print(f"🎭 character: {character}")
 
 # しりとり開始コマンド
-    if user_message == "/shiritori":
-        user_shiritori_map[user_id] = None #初期化
-        shiritori_state[user_id] = {"mode": "shiritori"}
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
+        if user_message.strip() == "/shiritori":
+            user_shiritori_map[user_id] = None #初期化
+            shiritori_state[user_id] = {"mode": "shiritori"}
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
             )
-        return
+            return
     
     #しりとりプレイ中かどうか判定
-    if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
-        handle_shiritori(event, user_id, user_message)
-        return
+        if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
+            handle_shiritori(event, user_id, user_message)
+            return
     
     #通常メッセージの処理
-    reply_message = get_character_reply(user_message, character)
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_message)
-    )
+        
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        reply_text = handle_user_message(user_id, user_message)
+
+    #返信送信
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=reply_text)
+        )
+    except Exception as e:
+        print("💥 handle_message エラー:", e)
+        print("💥 詳細:", traceback.format_exc())
+
 
     # --- 5. GPT応答処理 ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -500,6 +509,7 @@ def handle_shiritori(event, user_id, user_message):
         event.reply_token,
         TextSendMessage(text=f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"))
     
+
     #BOTが「ん」で終わったら
     if bot_word.endswith("ん"):
         user_shiritori_map.pop(user_id, None)
@@ -509,15 +519,6 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
         )
     return
-
-
-
-   
-
-reply = handle_user_message(user_id, user_message)
-line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
