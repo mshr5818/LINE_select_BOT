@@ -158,7 +158,66 @@ def update_character(user_id, text):
 
 print("OPENAI_API_KEY の読み込み成功(内容は非表示)")
 
-# --- 5. GPT応答処理 ---
+
+
+# --- 7. LINEのWebhook処理 ---
+@app.route("/callback", methods=['POST'])
+def callback():
+    signature = request.headers.get('X-Line-Signature',"")
+    body = request.get_data(as_text=True)
+
+    print("📨 /callback  にリクエスト受信:", body)
+
+    if not signature:
+        print("💥 署名ヘッダー (X-Line-Signature) が無いリクエストを拒否します")
+        return "Missing Signature", 400
+
+    try:
+        handler.handle(body, signature)
+    except Exception as e:
+        print("💥 Webhook handler エラー:", e)
+        print("💥 詳細:", traceback.format_exc())
+    return 'OK'
+
+@app.route("/", methods=["GET"])
+def index():
+    return "LINE BOT is running!"
+
+
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    try:
+        user_id = event.source.user_id
+        user_message = event.message.text
+        character = user_character_map.get(user_id, "tsundere_junior")
+    except Exception as e:
+        print("💥 handle_message エラー:", e)
+        return
+
+# しりとり開始コマンド
+    if user_message == "/shiritori":
+        user_shiritori_map[user_id] = None #初期化
+        shiritori_state[user_id] = {"mode": "shiritori"}
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
+            )
+        return
+    
+    #しりとりプレイ中かどうか判定
+    if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
+        handle_shiritori(event, user_id, user_message)
+        return
+    
+    #通常メッセージの処理
+    reply_message = get_character_reply(user_message, character)
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_message)
+    )
+
+    # --- 5. GPT応答処理 ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def chat_with_gpt(system_prompt, user_message):
@@ -215,63 +274,11 @@ def handle_user_message(user_id, user_message):
     return chat_with_gpt(system_prompt, user_message)
 
 
-# --- 7. LINEのWebhook処理 ---
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers.get('X-Line-Signature',"")
-    body = request.get_data(as_text=True)
-
-    print("📨 /callback  にリクエスト受信:", body)
-
-    if not signature:
-        print("💥 署名ヘッダー (X-Line-Signature) が無いリクエストを拒否します")
-        return "Missing Signature", 400
-
-    try:
-        handler.handle(body, signature)
-    except Exception as e:
-        print("💥 Webhook handler エラー:", e)
-        print("💥 詳細:", traceback.format_exc())
-    return 'OK'
-
-@app.route("/", methods=["GET"])
-def index():
-    return "LINE BOT is running!"
-
-
-
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    try:
-        user_id = event.source.user_id
-        user_message = event.message.text
-    except Exception as e:
-        print("💥 handle_message エラー:", e)
-        return
-
-# しりとり開始コマンド
-    if user_message == "/shiritori":
-        user_shiritori_map[user_id] = None
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
-            )
-        return
     
-    #しりとりプレイ中かどうか判定
-    if user_id in user_shiritori_map:
-        handle_shiritori(event, user_id, user_message)
-        return
-    
-
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_message)
-        )
-    return "OK"
 
 
     # --- ユーザーごとのしりとり状態 ---
+shiritori_state = {}
 user_shiritori_map = {}  # { user_id: "前の文字" }
 user_character_map = {}  # { user_id: "tsundere_junior"}
 
@@ -442,11 +449,12 @@ def get_shiritori_word(last_char, character):
     return random.choice(valid_words)
 
     # しりとり中の処理
-def handle_shiritori(event, user_id, user_massage):
+def handle_shiritori(event, user_id, user_message):
     last_char = user_shiritori_map[user_id]
 
     if user_message == "やめる":
         user_shiritori_map.pop(user_id, None)
+        shiritori_state.pop(user_id, None)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="しりとりを終了したよ。おつかれさま〜"))
@@ -460,38 +468,51 @@ def handle_shiritori(event, user_id, user_massage):
                 TextSendMessage(text=f"「{last_char}」から始めてほしかったんだけど…"))
             return
 
-    if user_message.endswith("ん"):
-        user_shiritori_map.pop(user_id, None)
-        return line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text= "「ん」がついたから負けだよ〜〜〜！💥"))
-        return
-    
         # 次の文字を取得
     next_char = get_last_hiragana(user_message)
     character = user_character_map.get(user_id, "tsundere_junior")
     bot_word = get_shiritori_word(next_char, character)
 
+    #プレイヤーが「ん」で終わったかチェック
+    if user_message.endswith("ん"):
+        user_shiritori_map.pop(user_id, None)
+        shiritori_state.pop(user_id, None)
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text= "「ん」がついたから負けだよ〜〜〜！💥"))
+        return
+    
+    #BOTの返答がない場合
     if not bot_word:
         user_shiritori_map.pop(user_id, None)
+        shiritori_state.pop(user_id, None)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text= f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！"))
         return
+    
+    #BOTが「ん」で終わったら
+    if bot_word.endswith("ん"):
+        user_shiritori_map.pop(user_id, None)
+        shiritori_state.pop(user_id, None)
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
+        )
+    return
 
         # BOTの返答から次の頭文字を取得して保存
-    next_for_user = get_last_hiragana(bot_word)
-    user_shiritori_map[user_id] = next_for_user
+next_for_user = get_last_hiragana(bot_word)
+user_shiritori_map[user_id] = next_for_user
 
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"))
+line_bot_api.reply_message(
+    event.reply_token,
+    TextSendMessage(text=f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"))
 
-    
-    reply = handle_user_message(user_id, user_message)
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+reply = handle_user_message(user_id, user_message)
+line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
-    
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
