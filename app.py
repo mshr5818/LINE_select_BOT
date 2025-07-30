@@ -491,6 +491,15 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text= f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！"))
         return
     
+            # BOTの返答から次の頭文字を取得して保存
+    next_for_user = get_last_hiragana(bot_word)
+    user_shiritori_map[user_id] = next_for_user
+
+
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"))
+    
     #BOTが「ん」で終わったら
     if bot_word.endswith("ん"):
         user_shiritori_map.pop(user_id, None)
@@ -501,13 +510,9 @@ def handle_shiritori(event, user_id, user_message):
         )
     return
 
-        # BOTの返答から次の頭文字を取得して保存
-next_for_user = get_last_hiragana(bot_word)
-user_shiritori_map[user_id] = next_for_user
 
-line_bot_api.reply_message(
-    event.reply_token,
-    TextSendMessage(text=f"{bot_word}（{next_for_user}）…さあ、次はあなたの番よ！"))
+
+   
 
 reply = handle_user_message(user_id, user_message)
 line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
