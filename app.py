@@ -450,15 +450,27 @@ def get_last_hiragana(word):
             return normalize_char(c)
     return None
 
-def get_shiritori_word(last_char, character):
-    words = SHIRITORI_WORDS.get(character, [])
-    valid_words = [w for w in words if w.startswith(last_char)]
-    if not valid_words:
-        return None
-    return random.choice(valid_words)
 
     # しりとり中の処理
 def handle_shiritori(event, user_id, user_message):
+    try:
+        character = user_character_map.get(user_id, "tsundere_junior")
+        last_word = user_shiritori_map.get(user_id)
+
+        # 入力の整形
+        user_word = user_message.strip().lower()
+
+        # 最初の単語チェック
+        if last_word:
+            if user_word[0] != last_word[-1]:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"『{last_word[-1]}』から始まる言葉じゃないとダメだよっ💢")
+                )
+                return
+    except Exception as e:
+        print("エラーが発生しました:", e)
+    
     last_char = user_shiritori_map[user_id]
 
     if user_message == "やめる":
@@ -478,9 +490,9 @@ def handle_shiritori(event, user_id, user_message):
             return
 
         # 次の文字を取得
-    next_char = get_last_hiragana(user_message)
-    character = user_character_map.get(user_id, "tsundere_junior")
-    bot_word = get_shiritori_word(next_char, character)
+        next_char = get_last_hiragana(user_message)
+        character = user_character_map.get(user_id, "tsundere_junior")
+        bot_word = get_shiritori_word(next_char, character)
 
     #プレイヤーが「ん」で終わったかチェック
     if user_message.endswith("ん"):
@@ -491,6 +503,14 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text= "「ん」がついたから負けだよ〜〜〜！💥"))
         return
     
+    def get_shiritori_word(last_char, character):
+        words = SHIRITORI_WORDS.get(character, [])
+        valid_words = [w for w in words if w.startswith(last_char)]
+        if not valid_words:
+            return None
+        return random.choice(valid_words)
+    
+
     #BOTの返答がない場合
     if not bot_word:
         user_shiritori_map.pop(user_id, None)
@@ -519,6 +539,8 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
         )
     return
+
+    
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
