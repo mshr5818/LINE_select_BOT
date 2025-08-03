@@ -23,6 +23,11 @@ handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
 
 app = Flask(__name__)
 
+# --- ユーザーごとのしりとり状態 ---
+shiritori_state = {}
+user_shiritori_map = {}  # { user_id: "前の文字" }
+user_character_map = {}  # { user_id: "tsundere_junior"}
+
 
 
 # --- 1. ユーザーごとのキャラ管理 ---
@@ -497,50 +502,39 @@ def handle_shiritori(event, user_id, user_message):
         print("エラーが発生しました:", e)
 
 # 最後の文字
-    last_char = get_last_hiragana(user_word)
+        last_char = get_last_hiragana(user_word)
 
 # BOTの単語
-    bot_word = get_shiritori_word(last_char, character)
+        bot_word = get_shiritori_word(last_char, character)
 
 # BOTの最初の文字
-    bot_first_char = get_first_hiragana(bot_word)
-
-# チェック
-    if last_char != bot_first_char:
-        return "それ、しりとりになってないよ〜！"
+        bot_first_char = get_first_hiragana(bot_word)
 
 #「やめる」コマンドで終了
-    if user_message == "やめる":
-            user_shiritori_map.pop(user_id, None)
-            shiritori_state.pop(user_id, None)
-            line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="しりとりを終了したよ。おつかれさま〜"))
-            return
-        
-#プレイヤーが「ん」で終わったかチェック
-    if user_message.endswith("ん"):
+        if user_message == "やめる":
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text= "「ん」がついたから負けだよ〜〜〜！💥"))
+                TextSendMessage(text="しりとりを終了したよ。おつかれさま〜")
+            )
+            return
+            
+        
+#BOTが「ん」で終わったら負け
+        if user_word.endswith("ん"):
+            user_shiritori_map.pop(user_id, None)
+            shiritori_state.pop(user_id, None)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
+            )
             return
         
 #最後の単語を取得（なければ初回）
-    last_word = user_shiritori_map.get(user_id)
-        
-# 最初の単語チェック
-    if last_word:
-        if user_word[0] != last_word[-1]:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"『{last_word[-1]}』から始まる言葉じゃないとダメだよっ💢")
-            )
-            return
-    
-        last_char = user_shiritori_map[user_id]
+        last_word = user_shiritori_map.get(user_id)
 
+        
 #初回（BOTのターン前）
         if not last_word:
             user_shiritori_map[user_id] = user_word  # 単語ごと保存
@@ -548,21 +542,10 @@ def handle_shiritori(event, user_id, user_message):
                 event.reply_token,
                 TextSendMessage(text=f"じゃあ、{user_word}…ね。私の番！")
             )
-
-
-# プレイヤーが最初に単語を言う場合（BOTの単語なし）
-        if not last_word:
-            user_shiritori_map[user_id] = user_word
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"じゃあ、{user_word}…ね。私の番！")
-            )
         else:
-# 前回の単語の末尾文字
             expected_char = get_last_hiragana(last_word)
-
-# ユーザーの単語の先頭文字
             user_first_char = normalize_char(user_word[0])
+
 
             if user_first_char != expected_char:
                 line_bot_api.reply_message(
@@ -570,42 +553,34 @@ def handle_shiritori(event, user_id, user_message):
                     TextSendMessage(text=f"『{expected_char}』から始まる言葉じゃないとダメだよっ💢")
                 )
                 return
-        
 # 次の文字を取得
-        next_char = get_last_hiragana(user_word)
-        bot_word = get_shiritori_word(next_char, character)
+            next_char = get_last_hiragana(user_word)
+            bot_word = get_shiritori_word(next_char, character)
 
 #BOTの返答がない場合
-        if not bot_word:
-            user_shiritori_map.pop(user_id, None)
-            shiritori_state.pop(user_id, None)
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text= f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！"))
-            return
-    
+            if not bot_word:
+                user_shiritori_map.pop(user_id, None)
+                shiritori_state.pop(user_id, None)
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text= f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！"))
+                return
+            
+#BOTが「ん」で終わったら負け            
+            if bot_word.endswith("ん"):
+                user_shiritori_map.pop(user_id, None)
+                shiritori_state.pop(user_id, None)
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
+                )
+                return
+            
 # BOTの返答から次の頭文字を取得して保存
-        user_shiritori_map[user_id] = bot_word
-
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
-
-        
-#BOTが「ん」で終わったら
-        if bot_word.endswith("ん"):
-            user_shiritori_map.pop(user_id, None)
-            shiritori_state.pop(user_id, None)
+            user_shiritori_map[user_id] = bot_word
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
-            )
-        return
-
-# --- ユーザーごとのしりとり状態 ---
-shiritori_state = {}
-user_shiritori_map = {}  # { user_id: "前の文字" }
-user_character_map = {}  # { user_id: "tsundere_junior"}
+                TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
 
 
 if __name__ == "__main__":
