@@ -28,6 +28,49 @@ shiritori_state = {}
 user_shiritori_map = {}  # { user_id: "前の文字" }
 user_character_map = {}  # { user_id: "tsundere_junior"}
 
+# ==== しりとり用関数 & 定数 ====
+HIRAGANA_CHARS = set(
+    "ぁあぃいぅうぇえぉおかがきぎくぐけげこご"
+    "さざしじすずせぜそぞただちぢっつづてでとど"
+    "なにぬねのはばぱひびぴふぶぷへべぺほぼぽ"
+    "まみむめもゃやゅゆょよらりるれろゎわゐゑをん"
+)
+
+def katakana_to_hiragana(text):
+    """カタカナをひらがなに変換する関数"""
+    return ''.join(
+        chr(ord(char) - 0x60) if 'ァ' <= char <= 'ン' else char
+        for char in text
+    )
+
+def normalize_char(char):
+    """小さい文字などを正規化する関数"""
+    char_map = {
+        "ゃ": "や", "ゅ": "ゆ", "ょ": "よ", "っ": "つ",
+        "ぁ": "あ", "ぃ": "い", "ぅ": "う", "ぇ": "え", "ぉ": "お",
+        "ゎ": "わ", "ゔ": "う", "ば": "は", "ぱ": "は", "が": "か",
+        "だ": "た", "ざ": "さ", "じゃ": "し", "ぢゃ": "ち", "づ": "つ"
+    }
+    return char_map.get(char, char)
+
+def get_last_hiragana(word):
+    """単語の最後のひらがな1文字を取得"""
+    word = katakana_to_hiragana(word).strip()
+    if not word:
+        return ""
+    for char in reversed(word):
+        if char in ["ー", " ", "　"]:
+            continue
+        return normalize_char(char)
+    return ""
+
+def get_first_hiragana(word):
+    """単語の最初のひらがな1文字を取得"""
+    word = katakana_to_hiragana(word)
+    for char in word:
+        if char in HIRAGANA_CHARS:
+            return normalize_char(char)
+    return ""
 
 
 # --- 1. ユーザーごとのキャラ管理 ---
@@ -435,63 +478,6 @@ SHIRITORI_WORDS = {
     "をとめごころ",  # 乙女心、繊細な揺れ 
 ]
 }
-
-
-# ひらがな化
-def normalize_char(char):
-    char = unicodedata.normalize("NFKC", char)
-    char = char.lower()
-    char = char.replace("ー", "")
-    char_map = {
-        "ゃ": "や", "ゅ": "ゆ", "ょ": "よ", "っ": "つ",
-        "ぁ": "あ", "ぃ": "い", "ぅ": "う", "ぇ": "え", "ぉ": "お",
-        "ゎ": "わ", "ゔ": "う", "ば": "は", "ぱ": "は", "が": "か",
-        "だ": "た", "ざ": "さ", "じゃ": "し", "ぢゃ": "ち", "づ": "つ"
-    }
-    return char_map.get(char, char)
-
-
-
-def get_last_hiragana(word):
-    # カタカナ→ひらがな変換（全体）
-    word = katakana_to_hiragana(word)
-    word = word.strip()
-
-    if not word:
-        return ""
-    
-# 最後の有効な文字を探す
-    for char in reversed(word):
-# 「ー」や空白をスキップ
-        if char in ["ー", " ", "　"]:
-            continue
-
-# 小さい文字を正規化
-        special_map = {
-            'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ',
-            'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
-            'っ': 'つ',
-        }
-
-        return special_map.get(char, char)  # 対応あれば置き換え、なければそのまま
-    return ""
-
-def katakana_to_hiragana(text):
-    return ''.join(
-        chr(ord(char) - 0x60) if 'ァ' <= char <= 'ン' else char
-        for char in text
-    )
-
-def get_first_hiragana(word):
-    """単語の最初の文字をひらがなで返す"""
-    word = katakana_to_hiragana(word)  # 全体をひらがなに変換
-    for char in word:
-        if char in HIRAGANA_CHARS:  # 有効なひらがなかどうかチェック
-            return normalize_char(char)  # 清音化など処理した一文字を返す
-    return ''
-
-
-
 
 # しりとり中の処理
 def handle_shiritori(event, user_id, user_message):
