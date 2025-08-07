@@ -522,11 +522,27 @@ def handle_shiritori(event, user_id, user_message):
 #初回（BOTのターン前）
         if not last_word:
             user_shiritori_map[user_id] = user_word  # 単語ごと保存
+            
+# 次の文字を取得
+            next_char = get_last_hiragana(user_word)
+            bot_word = get_shiritori_word(next_char, character)
+            
+#BOTの返答がない場合
+            if not bot_word:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！")
+                )
+                return
+            
+            # BOTの返答から次の頭文字を取得して保存
+            user_shiritori_map[user_id] = bot_word
+            
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=f"じゃあ、{user_word}…ね。私の番！")
+                TextSendMessage(text=f"じゃあ、{user_word}…ね。私の番！\n『{bot_word}』！つぎ、あなたの番よ！")
             )
-            return
+            return 
         
         expected_char = get_last_hiragana(last_word)
         user_first_char = normalize_char(user_word[0])
@@ -539,18 +555,9 @@ def handle_shiritori(event, user_id, user_message):
             )
             return
         
-# 次の文字を取得
-        next_char = get_last_hiragana(user_word)
-        bot_word = get_shiritori_word(next_char, character)
 
-#BOTの返答がない場合
-        if not bot_word:
-            user_shiritori_map.pop(user_id, None)
-            shiritori_state.pop(user_id, None)
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text= f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！"))
-            return
+
+
             
 #BOTが「ん」で終わったら負け            
         if bot_word.endswith("ん"):
@@ -562,8 +569,7 @@ def handle_shiritori(event, user_id, user_message):
             )
             return
             
-# BOTの返答から次の頭文字を取得して保存
-        user_shiritori_map[user_id] = bot_word
+
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
@@ -575,6 +581,6 @@ def handle_shiritori(event, user_id, user_message):
             event.reply_token,
             TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
         )
-        
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
