@@ -225,6 +225,8 @@ def callback():
     except Exception as e:
         print("💥 Webhook handler エラー:", e)
         print("💥 詳細:", traceback.format_exc())
+        return "Error", 500
+    
     return 'OK'
 
 @app.route("/", methods=["GET"])
@@ -243,6 +245,20 @@ def handle_message(event):
         print(f"👤 user_id: {user_id}")
         print(f"📝 message: {user_message}")
         print(f"🎭 character: {character}")
+
+    except Exception as e:
+        print("💥 handle_message エラー発生:", e)
+        import traceback
+        print(traceback.format_exc())
+        # できればユーザーにも通知
+        try:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="ごめんなさい、処理中に問題が起きました。")
+            )
+        except:
+            pass
+        
 
 # しりとり開始コマンド
         if user_message.strip() == "/shiritori":
@@ -575,6 +591,7 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
 
     except Exception as e:
+        print("💥 [DEBUG] exceptに入りました")
         print("💥 handle_shiritori エラー:", e)
         print("💥 詳細:", traceback.format_exc())
         line_bot_api.reply_message(
@@ -583,4 +600,4 @@ def handle_shiritori(event, user_id, user_message):
         )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
