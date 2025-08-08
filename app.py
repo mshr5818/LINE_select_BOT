@@ -15,6 +15,8 @@ from openai import OpenAI
 import random
 from dotenv import load_dotenv
 import unicodedata
+import sys
+sys.stdout.reconfigure(line_buffering=True)
 
 load_dotenv()
 
@@ -588,13 +590,17 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
 
     except Exception as e:
-        print("💥 [DEBUG] exceptに入りました")
-        print("💥 handle_shiritori エラー:", e)
-        print("💥 詳細:", traceback.format_exc())
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
-        )
+        try:
+            print("💥 [DEBUG] exceptに入りました" flush=True)
+            print("💥 handle_shiritori エラー:", e, frush=True)
+            print("💥 詳細:", traceback.format_exc())
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
+            )
+        except Exception as inner_e:
+            print("💥 エラー処理中にさらに例外:", inner_e, flush=True)
+            print(traceback.format_exc(), flush=True)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
