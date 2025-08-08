@@ -260,31 +260,28 @@ def handle_message(event):
 
 
 # しりとり開始コマンド
-        if user_message.strip().lower() == "/shiritori":
-            user_shiritori_map[user_id] = None #初期化
-            shiritori_state[user_id] = {"mode": "shiritori"}
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
-            )
-            return
-    
-#しりとりプレイ中かどうか判定
-        if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
-            handle_shiritori(event, user_id, user_message)
-            return
-    
-#通常メッセージの処理
-        reply_text = handle_user_message(user_id, user_message)
-
-#返信送信
+    if user_message.strip().lower() == "/shiritori":
+        user_shiritori_map[user_id] = None #初期化
+        shiritori_state[user_id] = {"mode": "shiritori"}
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=reply_text)
+            TextSendMessage(text="しりとりを始めるよ！最初の言葉をどうぞ✨")
         )
-    except Exception as e:
-        print("💥 handle_message エラー:", e)
-        print("💥 詳細:", traceback.format_exc())
+        return
+    
+#しりとりプレイ中かどうか判定
+    if shiritori_state.get(user_id, {}).get("mode") == "shiritori":
+        handle_shiritori(event, user_id, user_message)
+        return
+    
+#通常メッセージの処理
+    reply_text = handle_user_message(user_id, user_message)
+
+#返信送信
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_text)
+    )
 
 
 # --- 5. GPT応答処理 ---
