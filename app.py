@@ -591,8 +591,8 @@ def handle_shiritori(event, user_id, user_message):
 
     except Exception as e:
         try:
-            print("💥 [DEBUG] exceptに入りました" flush=True)
-            print("💥 handle_shiritori エラー:", e, frush=True)
+            print("💥 [DEBUG] exceptに入りました", flush=True)
+            print("💥 handle_shiritori エラー:", e, flush=True)
             print("💥 詳細:", traceback.format_exc())
             line_bot_api.reply_message(
                 event.reply_token,
