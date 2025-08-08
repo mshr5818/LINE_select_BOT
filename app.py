@@ -260,7 +260,7 @@ def handle_message(event):
 
 
 # しりとり開始コマンド
-        if user_message.strip() == "/shiritori":
+        if user_message.strip().lower() == "/shiritori":
             user_shiritori_map[user_id] = None #初期化
             shiritori_state[user_id] = {"mode": "shiritori"}
             line_bot_api.reply_message(
@@ -513,15 +513,6 @@ def handle_shiritori(event, user_id, user_message):
             return
             
         
-#BOTが「ん」で終わったら負け
-        if user_word.endswith("ん"):
-            user_shiritori_map.pop(user_id, None)
-            shiritori_state.pop(user_id, None)
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
-            )
-            return
         
 #最後の単語を取得（なければ初回）
         last_word = user_shiritori_map.get(user_id)
@@ -542,7 +533,17 @@ def handle_shiritori(event, user_id, user_message):
                 event.reply_token,
                 TextSendMessage(text=f"じゃあ、{user_word}…ね。私の番！\n『{bot_word}』！つぎ、あなたの番よ！")
             )
-            return 
+            return
+        
+#BOTが「ん」で終わったら負け
+        if user_word.endswith("ん"):
+            user_shiritori_map.pop(user_id, None)
+            shiritori_state.pop(user_id, None)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
+            )
+            return
 
 #通常プレイ （2ターン目以降）       
         expected_char = get_last_hiragana(last_word)
