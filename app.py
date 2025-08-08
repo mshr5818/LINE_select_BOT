@@ -346,7 +346,7 @@ def handle_user_message(user_id, user_message):
 def get_shiritori_word(last_char, character):
     words = SHIRITORI_WORDS.get(character, [])
     valid_words = [w for w in words if w.startswith(last_char)]
-    
+    print(f"[DEBUG] valid_words: {valid_words}")
     if valid_words:
         return random.choice(valid_words)
     else:
@@ -510,8 +510,6 @@ def handle_shiritori(event, user_id, user_message):
                 TextSendMessage(text="しりとりを終了したよ。おつかれさま〜")
             )
             return
-            
-        
         
 #最後の単語を取得（なければ初回）
         last_word = user_shiritori_map.get(user_id)
@@ -558,7 +556,7 @@ def handle_shiritori(event, user_id, user_message):
 
 # 最後の文字
         last_char = get_last_hiragana(user_word)
-
+        print(f"[DEBUG] last_char: '{last_char}'")
 # BOTの単語
         bot_word = get_shiritori_word(last_char, character)
 
