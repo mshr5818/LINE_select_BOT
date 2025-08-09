@@ -6,6 +6,7 @@ LINE Messaging API と OpenAI を使った対話型ボットのメインモジ�
 """
 import os
 import traceback
+import sys
 
 from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
@@ -344,6 +345,9 @@ def handle_user_message(user_id, user_message):
 
 
 def get_shiritori_word(last_char, character):
+    
+    print("ここまで来てる！", file=sys.stderr)
+
     words = SHIRITORI_WORDS.get(character, [])
     valid_words = [w for w in words if w.startswith(last_char)]
     print(f"[DEBUG] valid_words: {valid_words}")
@@ -378,7 +382,7 @@ SHIRITORI_WORDS = {
     "ぬるオタ",   # ぬ
     "寝落ち",     # ね
     "脳内会議",   # の
-    "沼",         # は
+    "ハッピー",  # は
     "ひよってる", # ひ
     "フェチ",     # ふ
     "変な夢",     # へ
