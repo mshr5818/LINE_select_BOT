@@ -8,6 +8,7 @@ import os
 import traceback
 import sys
 import logging
+import json
 
 from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
@@ -215,13 +216,20 @@ def update_character(user_id, text):
 
 print("OPENAI_API_KEY の読み込み成功(内容は非表示)")
 
-
+# しりとり用のフラグと状態
+shiritori_state = {
+    "active": False,
+    "last_word": None,
+    "character": None
+}
 
 # --- 7. LINEのWebhook処理 ---
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature',"")
     body = request.get_data(as_text=True)
+    event = json.loads(body)["events"][0]
+    user_message = event["message"]["text"]
 
     print("📨 /callback  にリクエスト受信:", body)
 
@@ -509,10 +517,9 @@ def handle_shiritori(event, user_id, user_message):
     try:
         character = user_character_map.get(user_id, "tsundere_junior")
         user_word = user_message.strip()
-    
 
 #「やめる」コマンドで終了
-        if user_message == "やめる":
+        if user_word == "やめる":
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
@@ -528,15 +535,17 @@ def handle_shiritori(event, user_id, user_message):
         
 #初回（BOTのターン前）
         if not last_word:
-            user_shiritori_map[user_id] = user_word  # 単語ごと保存
-            
-# 次の文字を取得
             next_char = get_last_hiragana(user_word)
-            logging.debug(f"初回 next_char={next_char}")
             bot_word = get_shiritori_word(next_char, character)
-            logging.debug(f"初回 bot_word={bot_word}")
             
-            # BOTの返答から次の頭文字を取得して保存
+            if not bot_word:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="うぅ…思いつかない…💦")
+                )
+                return
+                    
+# BOTの返答から次の頭文字を取得して保存
             user_shiritori_map[user_id] = bot_word
             line_bot_api.reply_message(
                 event.reply_token,
@@ -557,7 +566,6 @@ def handle_shiritori(event, user_id, user_message):
 #通常プレイ （2ターン目以降）       
         expected_char = get_last_hiragana(last_word)
         user_first_char = normalize_char(user_word[0])
-
 
         if user_first_char != expected_char:
             logging.debug("頭文字不一致 → エラー返答")
@@ -599,7 +607,8 @@ def handle_shiritori(event, user_id, user_message):
         user_shiritori_map[user_id] = bot_word
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
+            TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！")
+        )
 
     except Exception as e:
             logging.error(f"エラー内容: {e}")
