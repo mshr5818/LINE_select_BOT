@@ -7,6 +7,7 @@ LINE Messaging API と OpenAI を使った対話型ボットのメインモジ�
 import os
 import traceback
 import sys
+import logging
 
 from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
@@ -16,10 +17,15 @@ from openai import OpenAI
 import random
 from dotenv import load_dotenv
 import unicodedata
-import sys
 sys.stdout.reconfigure(line_buffering=True)
 
 load_dotenv()
+
+# ログ設定（アプリ起動時に1回だけ設定）
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
@@ -499,7 +505,7 @@ SHIRITORI_WORDS = {
 
 # しりとり中の処理
 def handle_shiritori(event, user_id, user_message):
-    print(f"🧩 handle_shiritori 呼び出し: {user_id=} {user_message=}")
+    logging.debug(f"🧩 handle_shiritori 呼び出し: user_id = {user_id}, user_message={user_message}")
     try:
         character = user_character_map.get(user_id, "tsundere_junior")
         user_word = user_message.strip()
@@ -517,6 +523,7 @@ def handle_shiritori(event, user_id, user_message):
         
 #最後の単語を取得（なければ初回）
         last_word = user_shiritori_map.get(user_id)
+        logging.debug(f"last_word={last_word}")
 
         
 #初回（BOTのターン前）
@@ -525,8 +532,9 @@ def handle_shiritori(event, user_id, user_message):
             
 # 次の文字を取得
             next_char = get_last_hiragana(user_word)
-            bot_word = get_shiritori_word(get_last_hiragana(user_word), character)
-            
+            logging.debug(f"初回 next_char={next_char}")
+            bot_word = get_shiritori_word(next_char, character)
+            logging.debug(f"初回 bot_word={bot_word}")
             
             # BOTの返答から次の頭文字を取得して保存
             user_shiritori_map[user_id] = bot_word
@@ -552,6 +560,7 @@ def handle_shiritori(event, user_id, user_message):
 
 
         if user_first_char != expected_char:
+            logging.debug("頭文字不一致 → エラー返答")
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=f"『{expected_char}』から始まる言葉じゃないとダメだよっ💢")
@@ -560,9 +569,10 @@ def handle_shiritori(event, user_id, user_message):
 
 # 最後の文字
         last_char = get_last_hiragana(user_word)
-        print(f"[DEBUG] last_char: '{last_char}'")
+        logging.debug(f"[DEBUG] last_char: '{last_char}'")
 # BOTの単語
         bot_word = get_shiritori_word(last_char, character)
+        logging.debug(f"BOT返答 bot_word={bot_word}")
 
 #BOTの返答がない場合
         if not bot_word:
@@ -592,17 +602,18 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！"))
 
     except Exception as e:
-        try:
-            print("💥 [DEBUG] exceptに入りました", flush=True)
-            print("💥 handle_shiritori エラー:", e, flush=True)
-            print("💥 詳細:", traceback.format_exc())
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
-            )
-        except Exception as inner_e:
-            print("💥 エラー処理中にさらに例外:", inner_e, flush=True)
-            print(traceback.format_exc(), flush=True)
+            logging.error(f"エラー内容: {e}")
+            logging.error("💥 handle_shiritori エラー:")
+            logging.error(traceback.format_exc())
+            try:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
+                )
+            except Exception as inner_e:
+                logging.error("💥 エラー処理中にさらに例外:")
+                logging.error(inner_e)
+                logging(traceback.format_exc(),)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
