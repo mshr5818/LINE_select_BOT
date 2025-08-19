@@ -513,7 +513,7 @@ SHIRITORI_WORDS = {
 
 # しりとり中の処理
 def handle_shiritori(event, user_id, user_message):
-    logging.debug(f"🧩 handle_shiritori 呼び出し: user_id = {user_id}, user_message={user_message}")
+    logging.debug("🧩 handle_shiritori 呼び出し: user_id=%s, user_message=%s user_id, user_message")
     try:
         character = user_character_map.get(user_id, "tsundere_junior")
         user_word = user_message.strip()
@@ -530,14 +530,24 @@ def handle_shiritori(event, user_id, user_message):
         
 #最後の単語を取得（なければ初回）
         last_word = user_shiritori_map.get(user_id)
-        logging.debug(f"last_word={last_word}")
+        logging.debug("last_word=%s", last_word)
 
         
 #初回（BOTのターン前）
         if not last_word:
-            next_char = get_last_hiragana(user_word)
-            bot_word = get_shiritori_word(next_char, character)
+            if user_word.endswith("ん"):
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="「ん」で終わっちゃったから負けだよ💦")
+                )
+                return
             
+            next_char = get_last_hiragana(user_word)
+            logging.debug("初回 next_char=%s", next_char)
+
+            bot_word = get_shiritori_word(next_char, character)
+            logging.debug("初回 bot_word=%s", bot_word)
+
             if not bot_word:
                 line_bot_api.reply_message(
                     event.reply_token,
@@ -549,7 +559,45 @@ def handle_shiritori(event, user_id, user_message):
             user_shiritori_map[user_id] = bot_word
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=f"じゃあ、{user_word}…ね。私の番！\n『{bot_word}』！つぎ、あなたの番よ！")
+                TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
+            )
+            return
+
+ # ユーザーが「ん」で終わったら負け
+        if user_word.endswith("ん"):
+            user_shiritori_map.pop(user_id, None)
+            shiritori_state.pop(user_id, None)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="あっ、「ん」がついちゃった…あなたの負けだよ😢")
+            )
+            return
+
+#通常プレイ （2ターン目以降）
+        expected_char = get_last_hiragana(last_word)
+        user_first_char = normalize_char(user_word[0])
+
+        if user_first_char != expected_char:
+            logging.debug("頭文字不一致 → expected=%s, got=%s", expected_char, user_first_char)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="『%s』から始まる言葉じゃないとダメだよっ💢" % expected_char)
+            )
+            return
+
+# BOTの単語を決定
+        last_char = get_last_hiragana(user_word)
+        logging.debug("[DEBUG] last_char=%s", last_char)
+
+        bot_word = get_shiritori_word(last_char, character)
+        logging.debug("BOT返答 bot_word=%s", bot_word)
+
+        if not bot_word:
+            user_shiritori_map.pop(user_id, None)
+            shiritori_state.pop(user_id, None)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="うぅ…「%s」から始まる言葉思いつかない…今日はあなたの勝ち！" % last_char)
             )
             return
         
@@ -559,70 +607,29 @@ def handle_shiritori(event, user_id, user_message):
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
+                TextSendMessage(text="%s…あっ、「ん」がついちゃった…私の負け…😢" % bot_word)
             )
             return
 
-#通常プレイ （2ターン目以降）       
-        expected_char = get_last_hiragana(last_word)
-        user_first_char = normalize_char(user_word[0])
-
-        if user_first_char != expected_char:
-            logging.debug("頭文字不一致 → エラー返答")
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"『{expected_char}』から始まる言葉じゃないとダメだよっ💢")
-            )
-            return
-
-# 最後の文字
-        last_char = get_last_hiragana(user_word)
-        logging.debug(f"[DEBUG] last_char: '{last_char}'")
-# BOTの単語
-        bot_word = get_shiritori_word(last_char, character)
-        logging.debug(f"BOT返答 bot_word={bot_word}")
-
-#BOTの返答がない場合
-        if not bot_word:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"うぅ…「{next_char}」から始まる言葉、思いつかない…負けた！")
-            )
-            shiritori_state.pop(user_id, None)
-            user_shiritori_map.pop(user_id, None)
-            return
-
-            
-#BOTが「ん」で終わったら負け            
-        if bot_word.endswith("ん"):
-            user_shiritori_map.pop(user_id, None)
-            shiritori_state.pop(user_id, None)
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"{bot_word}…あっ、「ん」がついちゃった…私の負け…😢")
-            )
-            return
-            
-# 正常な返信
+# 正常なやり取り
         user_shiritori_map[user_id] = bot_word
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"{bot_word}…さあ、次はあなたの番よ！")
+            TextSendMessage(text="%s！ 次はあなたの番！" % bot_word)
         )
 
+
     except Exception as e:
-            logging.error(f"エラー内容: {e}")
-            logging.error("💥 handle_shiritori エラー:")
-            logging.error(traceback.format_exc())
-            try:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
-                )
-            except Exception as inner_e:
-                logging.error("💥 エラー処理中にさらに例外:")
-                logging.error(inner_e)
-                logging(traceback.format_exc(),)
+        logging.error("💥 handle_shiritori エラー:")
+        logging.error("Traceback:\n%s", traceback.format_exc())
+        try:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="しりとりでエラーが起きちゃったみたい…。ごめんね。")
+            )
+        except Exception as inner_e:
+            logging.error("💥 エラー処理中にさらに例外: %s", inner_e)
+            logging("Traceback:\n%s", traceback.format_exc())
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
