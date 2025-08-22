@@ -53,15 +53,16 @@ def katakana_to_hiragana(text):
         for char in text
     )
 
-def normalize_char(char):
-    """小さい文字などを正規化する関数"""
-    char_map = {
+def normalize_char(ch):
+    nfkd = unicodedata.normalize('NFKD', ch)
+    base = nfkd[0]
+    table = str.maketrans({
         "ゃ": "や", "ゅ": "ゆ", "ょ": "よ", "っ": "つ",
         "ぁ": "あ", "ぃ": "い", "ぅ": "う", "ぇ": "え", "ぉ": "お",
         "ゎ": "わ", "ゔ": "う", "ば": "は", "ぱ": "は", "が": "か",
         "だ": "た", "ざ": "さ", "じゃ": "し", "ぢゃ": "ち", "づ": "つ"
-    }
-    return char_map.get(char, char)
+    })
+    return base.translate(table)
 
 def get_last_hiragana(word):
     """単語の最後のひらがな1文字を取得"""
@@ -510,10 +511,17 @@ SHIRITORI_WORDS = {
     "をとめごころ",  # 乙女心、繊細な揺れ 
 ]
 }
+# 清音化（濁点・半濁点を取る）
+def to_seion(char):
+    decomposed = unicodedata.normalize("NFD", char)
+    return ''.join(c for c in decomposed if unicodedata.category(c) != "Mn")
+
+def normalize_char(char):
+    return to_seion(char)
 
 # しりとり中の処理
 def handle_shiritori(event, user_id, user_message):
-    logging.debug("🧩 handle_shiritori 呼び出し: user_id=%s, user_message=%s user_id, user_message")
+    logging.debug("🧩 handle_shiritori 呼び出し: user_id=%s, user_message=%s", user_id, user_message)
     try:
         character = user_character_map.get(user_id, "tsundere_junior")
         user_word = user_message.strip()
@@ -534,45 +542,22 @@ def handle_shiritori(event, user_id, user_message):
 
         
 #初回（BOTのターン前）
-        if not last_word:
-            if user_word.endswith("ん"):
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="「ん」で終わっちゃったから負けだよ💦")
-                )
-                return
-            
-            next_char = get_last_hiragana(user_word)
-            logging.debug("初回 next_char=%s", next_char)
+        next_char = normalize_char(get_last_hiragana(user_word))
+        logging.debug("初回 next_char=%s", next_char)
 
-            bot_word = get_shiritori_word(next_char, character)
-            logging.debug("初回 bot_word=%s", bot_word)
+        bot_word = get_shiritori_word(next_char, character)
+        logging.debug("初回 bot_word=%s", bot_word)
 
-            if not bot_word:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="うぅ…思いつかない…💦")
-                )
-                return
-                    
-# BOTの返答から次の頭文字を取得して保存
-            user_shiritori_map[user_id] = bot_word
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
-            )
-            return
-
- # ユーザーが「ん」で終わったら負け
+# ユーザーが「ん」で終わったら負け
         if user_word.endswith("ん"):
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="あっ、「ん」がついちゃった…あなたの負けだよ😢")
-            )
+                    event.reply_token,
+                    TextSendMessage(text="あっ、「ん」がついちゃった…あなたの負けだよ😢")
+                )
             return
-
+        
 #通常プレイ （2ターン目以降）
         expected_char = get_last_hiragana(last_word)
         user_first_char = normalize_char(user_word[0])
@@ -618,6 +603,20 @@ def handle_shiritori(event, user_id, user_message):
             TextSendMessage(text="%s！ 次はあなたの番！" % bot_word)
         )
 
+        if not bot_word:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="うぅ…思いつかない…💦")
+            )
+            return
+                    
+# BOTの返答から次の頭文字を取得して保存
+        user_shiritori_map[user_id] = bot_word
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
+        )
+        return
 
     except Exception as e:
         logging.error("💥 handle_shiritori エラー:")
