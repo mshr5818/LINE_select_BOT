@@ -516,9 +516,6 @@ def to_seion(char):
     decomposed = unicodedata.normalize("NFD", char)
     return ''.join(c for c in decomposed if unicodedata.category(c) != "Mn")
 
-def normalize_char(char):
-    return to_seion(char)
-
 # しりとり中の処理
 def handle_shiritori(event, user_id, user_message):
     logging.debug("🧩 handle_shiritori 呼び出し: user_id=%s, user_message=%s", user_id, user_message)
@@ -613,9 +610,9 @@ def handle_shiritori(event, user_id, user_message):
 # BOTの返答から次の頭文字を取得して保存
         user_shiritori_map[user_id] = bot_word
         line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
-        )
+                event.reply_token,
+                TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
+                )
         return
 
     except Exception as e:
