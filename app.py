@@ -9,6 +9,7 @@ import traceback
 import sys
 import logging
 import json
+import time
 
 from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
@@ -32,6 +33,9 @@ line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
 
 app = Flask(__name__)
+
+# イベントIDのキャッシュ（メモリ管理、簡易版）
+processed_event_ids = {}
 
 # --- ユーザーごとのしりとり状態 ---
 shiritori_state = {}
@@ -224,15 +228,31 @@ shiritori_state = {
     "character": None
 }
 
+
+
 # --- 7. LINEのWebhook処理 ---
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature',"")
     body = request.get_data(as_text=True)
     event = json.loads(body)["events"][0]
-    user_message = event["message"]["text"]
+    event_id = event.get("message", {}).get("id")
 
     print("📨 /callback  にリクエスト受信:", body)
+
+    # --- 重複防止チェック ---
+    now = time.time()
+    # 60秒以内のイベントは無視
+    if event_id in processed_event_ids:
+        if now - processed_event_ids[event_id] < 60:
+            print(f"⚠️ 重複イベント検出: {event_id} → スキップ")
+            return "Duplicate Event", 200
+    processed_event_ids[event_id] = now
+
+    # 古いIDを掃除（メモリリーク防止）
+    for eid in list(processed_event_ids.keys()):
+        if now - processed_event_ids[eid] > 120:
+            del processed_event_ids[eid]
 
     if not signature:
         print("💥 署名ヘッダー (X-Line-Signature) が無いリクエストを拒否します")
@@ -275,6 +295,8 @@ def handle_message(event):
             )
         except:
             pass
+
+
 
 
 # しりとり開始コマンド
