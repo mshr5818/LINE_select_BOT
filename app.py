@@ -238,14 +238,14 @@ def callback():
     event = json.loads(body)["events"][0]
     event_id = event.get("message", {}).get("id")
 
-    print("📨 /callback  にリクエスト受信:", body)
+    print("📨 /callback  にリクエスト受信:", body, flush=True)
 
     # --- 重複防止チェック ---
     now = time.time()
     # 60秒以内のイベントは無視
     if event_id in processed_event_ids:
         if now - processed_event_ids[event_id] < 60:
-            print(f"⚠️ 重複イベント検出: {event_id} → スキップ")
+            print(f"⚠️ 重複イベント検出: {event_id} → スキップ", flush=True)
             return "Duplicate Event", 200
     processed_event_ids[event_id] = now
 
@@ -255,14 +255,14 @@ def callback():
             del processed_event_ids[eid]
 
     if not signature:
-        print("💥 署名ヘッダー (X-Line-Signature) が無いリクエストを拒否します")
+        print("💥 署名ヘッダー (X-Line-Signature) が無いリクエストを拒否します", flush=True)
         return "Missing Signature", 400
 
     try:
         handler.handle(body, signature)
     except Exception as e:
-        print("💥 Webhook handler エラー:", e)
-        print("💥 詳細:", traceback.format_exc())
+        print("💥 Webhook handler エラー:", e, flush=True)
+        print("💥 詳細:", traceback.format_exc(), flush=True)
         return "Error", 500
     
     return 'OK'
@@ -280,13 +280,13 @@ def handle_message(event):
         user_message = event.message.text
         character = user_character_map.get(user_id, "tsundere_junior")
 
-        print(f"👤 user_id: {user_id}")
-        print(f"📝 message: {user_message}")
-        print(f"🎭 character: {character}")
+        print(f"👤 user_id: {user_id}", flush=True)
+        print(f"📝 message: {user_message}", flush=True)
+        print(f"🎭 character: {character}", flush=True)
 
     except Exception as e:
-        print("💥 handle_message エラー発生:", e)
-        print(traceback.format_exc())
+        print("💥 handle_message エラー発生:", e, flush=True)
+        print(traceback.format_exc(), flush=True)
         # できればユーザーにも通知
         try:
             line_bot_api.reply_message(
@@ -341,13 +341,13 @@ def chat_with_gpt(system_prompt, user_message):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print("💥 GPTエラー:", e)
-        print("💥 GPTエラー詳細:", traceback.format_exc())
+        print("💥 GPTエラー:", e, flush=True)
+        print("💥 GPTエラー詳細:", traceback.format_exc(), flush=True)
         return "…エラーが出たみたいですけど？"
 
 # --- 6. メッセージ処理本体 ---
 def handle_user_message(user_id, user_message):
-    print(f"📩 {user_id} さんから: {user_message}")
+    print(f"📩 {user_id} さんから: {user_message}", flush=True)
 
 # コマンド切り替え
     character_change_msg = update_character(user_id, user_message)
@@ -357,26 +357,26 @@ def handle_user_message(user_id, user_message):
 
 # キャラ設定されてない場合はデフォルト（ツンデレ）
     character = user_character_map.get(user_id, "tsundere_junior")
-    print("🎭 使用キャラ:", character)
+    print("🎭 使用キャラ:", character, flush=True)
 
 # キーワード応答
     for keyword, responses in CHARACTER_RESPONSES[character]["keywords"].items():
         if keyword in user_message:
-            print("✨ キーワードヒット:", keyword)
+            print("✨ キーワードヒット:", keyword, flush=True)
             return random.choice(responses)
 
 # 3%の確率で特別なレア返答
     if random.random() < 0.03:
-        print("🌟 超レア返答発動！")
+        print("🌟 超レア返答発動！", flush=True)
         return random.choice(CHARACTER_RESPONSES[character]["rare"])
     
 # ランダム応答（30%くらいの確率で）
     if random.random() < 0.3:
-        print("🎲 ランダム応答発動！")
+        print("🎲 ランダム応答発動！", flush=True)
         return random.choice(CHARACTER_RESPONSES[character]["random"])
     
 # GPT応答
-    print("🧠 GPTに送信")
+    print("🧠 GPTに送信", flush=True)
     system_prompt = CHARACTER_PROMPTS[character]
     return chat_with_gpt(system_prompt, user_message)
 
@@ -387,7 +387,7 @@ def get_shiritori_word(last_char, character):
 
     words = SHIRITORI_WORDS.get(character, [])
     valid_words = [w for w in words if w.startswith(last_char)]
-    print(f"[DEBUG] valid_words: {valid_words}")
+    print(f"[DEBUG] valid_words: {valid_words}", flush=True)
     if valid_words:
         return random.choice(valid_words)
     else:
