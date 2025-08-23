@@ -317,13 +317,6 @@ def handle_message(event):
 #通常メッセージの処理
     reply_text = handle_user_message(user_id, user_message)
 
-#返信送信
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text)
-    )
-
-
 # --- 5. GPT応答処理 ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -545,8 +538,16 @@ def handle_shiritori(event, user_id, user_message):
         character = user_character_map.get(user_id, "tsundere_junior")
         user_word = user_message.strip()
 
+        #初回（BOTのターン前）
+        next_char = normalize_char(get_last_hiragana(user_word))
+        logging.debug("初回 next_char=%s", next_char)
+
+        bot_word = get_shiritori_word(next_char, character)
+        logging.debug("初回 bot_word=%s", bot_word)
+
 #「やめる」コマンドで終了
         if user_word == "やめる":
+            print("💡 reply_message 呼び出し: やめるコマンド user_word=%s" % user_word, flush=True)
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
@@ -555,20 +556,23 @@ def handle_shiritori(event, user_id, user_message):
             )
             return
         
+# 初回
+        if not last_word:
+            print("💡 reply_message 呼び出し: 初回 user_word=%s, bot_word=%s" % (user_word, bot_word), flush=True) 
+            user_shiritori_map[user_id] = bot_word
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
+                )
+
 #最後の単語を取得（なければ初回）
         last_word = user_shiritori_map.get(user_id)
         logging.debug("last_word=%s", last_word)
 
-        
-#初回（BOTのターン前）
-        next_char = normalize_char(get_last_hiragana(user_word))
-        logging.debug("初回 next_char=%s", next_char)
-
-        bot_word = get_shiritori_word(next_char, character)
-        logging.debug("初回 bot_word=%s", bot_word)
 
 # ユーザーが「ん」で終わったら負け
         if user_word.endswith("ん"):
+            print("💡 reply_message 呼び出し: ユーザーが「ん」 user_word=%s" % user_word, flush=True)
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
@@ -597,6 +601,7 @@ def handle_shiritori(event, user_id, user_message):
         logging.debug("BOT返答 bot_word=%s", bot_word)
 
         if not bot_word:
+            print("💡 reply_message 呼び出し: BOTが思いつかない last_char=%s" % last_char, flush=True)
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
@@ -606,7 +611,8 @@ def handle_shiritori(event, user_id, user_message):
             return
         
 #BOTが「ん」で終わったら負け
-        if user_word.endswith("ん"):
+        if bot_word.endswith("ん"):
+            print("💡 reply_message 呼び出し: BOTが「ん」で終わったパターン bot_word=%s" % bot_word, flush=True)
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
             line_bot_api.reply_message(
@@ -616,30 +622,16 @@ def handle_shiritori(event, user_id, user_message):
             return
 
 # 正常なやり取り
+        print("💡 reply_message 呼び出し: 通常返信パターン bot_word=%s" % bot_word, flush=True)
         user_shiritori_map[user_id] = bot_word
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="%s！ 次はあなたの番！" % bot_word)
         )
 
-        if not bot_word:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="うぅ…思いつかない…💦")
-            )
-            return
-                    
-# BOTの返答から次の頭文字を取得して保存
-        user_shiritori_map[user_id] = bot_word
-        line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
-                )
-        return
-
     except Exception as e:
-        logging.error("💥 handle_shiritori エラー:")
-        logging.error("Traceback:\n%s", traceback.format_exc())
+        print("💥 handle_shiritori エラー:", flush=True)
+        print("Traceback:\n%s", traceback.format_exc(), flush=True)
         try:
             line_bot_api.reply_message(
                 event.reply_token,
