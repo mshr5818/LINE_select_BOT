@@ -314,8 +314,17 @@ def handle_message(event):
         handle_shiritori(event, user_id, user_message)
         return
     
+
 #通常メッセージの処理
+    print("💬 通常メッセージ処理開始", flush=True)
     reply_text = handle_user_message(user_id, user_message)
+    print(f"✅ GPT応答: {reply_text}", flush=True)
+
+    # ✅ ここで必ず返信
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_text)
+    )
 
 # --- 5. GPT応答処理 ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
