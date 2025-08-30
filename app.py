@@ -556,6 +556,10 @@ def handle_shiritori(event, user_id, user_message):
             )
             return
         
+#最後の単語を取得（なければ初回）
+        last_word = user_shiritori_map.get(user_id)
+        logging.debug("last_word=%s", last_word)
+
 # 初回
         if not last_word:
             print("💡 reply_message 呼び出し: 初回 user_word=%s, bot_word=%s" % (user_word, bot_word), flush=True) 
@@ -564,11 +568,6 @@ def handle_shiritori(event, user_id, user_message):
                 event.reply_token,
                 TextSendMessage(text="じゃあ、%s…ね。私の番！\n『%s』！つぎ、あなたの番よ！" %(user_word, bot_word))
                 )
-
-#最後の単語を取得（なければ初回）
-        last_word = user_shiritori_map.get(user_id)
-        logging.debug("last_word=%s", last_word)
-
 
 # ユーザーが「ん」で終わったら負け
         if user_word.endswith("ん"):
