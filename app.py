@@ -591,10 +591,10 @@ def handle_shiritori(event, user_id, user_message):
             return
 
         # 前回の BOT 単語
-        last_word = user_shiritori_map.get(user_id)
+        last_bot_word = user_shiritori_map.get(user_id)
 
         # --- 初回 ---
-        if not last_word:
+        if not last_bot_word:
             if user_last_char == "ん":
                 print(f"💡 初回で「ん」: user_word={user_word}", flush=True)
                 line_bot_api.reply_message(
@@ -636,7 +636,7 @@ def handle_shiritori(event, user_id, user_message):
             return
 
         # 頭文字チェック
-        expected_char = get_last_hiragana(last_word)
+        expected_char = get_last_hiragana(last_bot_word)
         if user_first_char != expected_char:
             logging.debug("頭文字不一致 → expected=%s, got=%s", expected_char, user_first_char)
             line_bot_api.reply_message(
