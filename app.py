@@ -650,13 +650,6 @@ def handle_shiritori(event, user_id, user_message):
         bot_word = get_shiritori_word(last_char, character)
         print(f"💡 通常 BOT応答: last_char={last_char}, bot_word={bot_word}", flush=True)
 
-        # 正常なやり取り
-        user_shiritori_map[user_id] = bot_word
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f"{bot_word}！ 次はあなたの番！")
-        )
-
         if not bot_word:
             user_shiritori_map.pop(user_id, None)
             shiritori_state.pop(user_id, None)
@@ -665,6 +658,13 @@ def handle_shiritori(event, user_id, user_message):
                 TextSendMessage(text=f"うぅ…『{last_char}』から始まる言葉思いつかない…今日はあなたの勝ち！")
             )
             return
+        
+        # 正常なやり取り
+        user_shiritori_map[user_id] = bot_word
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"{bot_word}！ 次はあなたの番！")
+        )
 
         # BOT が「ん」で終わったら負け
         if bot_word.endswith("ん"):
